@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLI-izdat / memory_archive</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --paper:    #f0e9d8;
+    --paper-2:  #e4dbc6;
+    --paper-3:  #d8cdb4;
+    --ink:      #161210;
+    --ink-fade: #2e2820;
+    --ink-ghost:#7a6e58;
+    --red:      #9b2020;
+    --red-fade: rgba(155,32,32,0.12);
+    --green:    #2a5a2a;
+    --green-dim:#1a3a1a;
+    --terminal-bg: #0a0c08;
+    --terminal-fg: #33ff33;
+    --terminal-dim: #1a3a1a;
+    --scanline: rgba(0,0,0,0.04);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: hidden;
+    background-image:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  }
+
+  /* ─── TYPEWRITER-ART TEXTURE (Wolf-Rehfeldt inspired) ──────────────── */
+
+  .char-texture {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 8px;
+    line-height: 1.1;
+    letter-spacing: 0.05em;
+    color: var(--paper-3);
+    overflow: hidden;
+    user-select: none;
+    pointer-events: none;
+    white-space: pre;
+    word-break: break-all;
+  }
+
+  .char-texture--dark {
+    color: rgba(255,255,255,0.04);
+  }
+
+  /* ─── HERO / MASTHEAD ──────────────────────────────────────────────── */
+
+  .hero {
+    position: relative;
+    background: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .hero-texture {
+    position: absolute;
+    inset: 0;
+    font-size: 7.5px;
+    line-height: 1.15;
+    color: rgba(255,255,255,0.025);
+    overflow: hidden;
+    z-index: 0;
+    padding: 1rem;
+  }
+
+  /* Scanlines over hero */
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.12) 2px,
+      rgba(0,0,0,0.12) 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .hero-boot {
+    position: relative;
+    z-index: 2;
+    padding: 1rem 2rem;
+    font-size: 10px;
+    color: var(--terminal-fg);
+    opacity: 0.5;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(51,255,51,0.08);
+  }
+
+  .hero-boot .blink {
+    animation: blink 1.2s step-end infinite;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4rem 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .hero-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-size: clamp(3rem, 8vw, 7rem);
+    line-height: 0.92;
+    letter-spacing: -0.04em;
+    color: #f0e9d8;
+    position: relative;
+    margin-bottom: 2rem;
+  }
+
+  .hero-title .strike {
+    position: relative;
+    display: inline;
+  }
+
+  .hero-title .strike::after {
+    content: '';
+    position: absolute;
+    left: -4px; right: -4px;
+    top: 52%;
+    height: 4px;
+    background: var(--red);
+    transform: rotate(-1deg);
+  }
+
+  .hero-title .line-2 {
+    display: block;
+    font-size: 0.35em;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(240,233,216,0.4);
+    margin-top: 1.2rem;
+    font-family: 'Roboto Mono', monospace;
+  }
+
+  .hero-subtitle {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    color: var(--terminal-fg);
+    opacity: 0.6;
+    max-width: 55ch;
+    line-height: 1.8;
+    margin-bottom: 3rem;
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: 2rem;
+    font-size: 10px;
+    color: rgba(240,233,216,0.25);
+    flex-wrap: wrap;
+  }
+
+  .hero-meta .val { color: var(--terminal-fg); opacity: 0.5; }
+
+  .hero-nav {
+    position: relative;
+    z-index: 2;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 0.8rem 2rem;
+    display: flex;
+    gap: 0.3rem;
+    font-size: 11px;
+    flex-wrap: wrap;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .hero-nav a {
+    color: rgba(240,233,216,0.3);
+    text-decoration: none;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .hero-nav a:hover {
+    color: var(--terminal-fg);
+    border-color: rgba(51,255,51,0.2);
+    background: rgba(51,255,51,0.04);
+  }
+
+  .hero-nav a::before { content: './'; color: rgba(51,255,51,0.3); font-size: 0.9em; }
+
+  /* ─── PATTERN BAND (Wolf-Rehfeldt typewriter art strip) ────────────── */
+
+  .pattern-band {
+    background: var(--paper-2);
+    padding: 0;
+    overflow: hidden;
+    border-top: 1px solid var(--paper-3);
+    border-bottom: 1px solid var(--paper-3);
+    position: relative;
+  }
+
+  .pattern-band-inner {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 7px;
+    line-height: 1.0;
+    letter-spacing: 0.08em;
+    color: var(--ink-ghost);
+    opacity: 0.35;
+    text-align: center;
+    padding: 0.8rem 1rem;
+    white-space: pre;
+    overflow: hidden;
+  }
+
+  /* ─── MAIN CONTENT AREA ────────────────────────────────────────────── */
+
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 4rem 2rem 5rem;
+  }
+
+  /* ─── SECTION PROMPT ───────────────────────────────────────────────── */
+
+  .prompt {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+    font-size: 10px;
+    color: var(--ink-ghost);
+  }
+
+  .prompt::before {
+    content: '$';
+    color: var(--green);
+    font-weight: 700;
+    font-size: 12px;
+  }
+
+  .prompt .cmd { color: var(--ink-fade); }
+  .prompt .arg { color: var(--red); }
+
+  /* ─── ENTRY / ARTICLE ──────────────────────────────────────────────── */
+
+  .entry {
+    margin-bottom: 5rem;
+    padding-top: 2.5rem;
+    border-top: 1px solid var(--paper-3);
+    position: relative;
+  }
+
+  .entry:first-child { border-top: none; padding-top: 0; }
+
+  .entry-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0 1.2rem;
+    align-items: start;
+    margin-bottom: 1.5rem;
+  }
+
+  .entry-index {
+    font-size: 9px;
+    color: var(--ink-ghost);
+    writing-mode: vertical-rl;
+    letter-spacing: 0.25em;
+    padding-top: 0.2rem;
+    font-weight: 500;
+  }
+
+  .entry-title {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.5rem, 3vw, 2.4rem);
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    margin-bottom: 0.3rem;
+  }
+
+  .entry-filepath {
+    font-size: 9.5px;
+    color: var(--green);
+    letter-spacing: 0.03em;
+    font-weight: 400;
+  }
+
+  /* ─── IMAGE TERMINAL ───────────────────────────────────────────────── */
+
+  .img-terminal {
+    position: relative;
+    background: var(--terminal-bg);
+    margin: 1.5rem 0;
+    overflow: hidden;
+    border: 1px solid rgba(51,255,51,0.08);
+  }
+
+  .img-terminal-bar {
+    background: #0e100c;
+    color: rgba(51,255,51,0.35);
+    font-size: 9.5px;
+    padding: 0.35rem 0.8rem;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(51,255,51,0.06);
+  }
+
+  .img-terminal-bar .ok { color: var(--terminal-fg); opacity: 0.5; }
+
+  .img-placeholder {
+    aspect-ratio: 16/9;
+    background: var(--terminal-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.8rem;
+    color: rgba(51,255,51,0.2);
+    font-size: 11px;
+    text-align: center;
+    padding: 2rem;
+    position: relative;
+    /* Scanlines */
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.2) 2px,
+        rgba(0,0,0,0.2) 3px
+      );
+  }
+
+  .img-placeholder .ascii-frame {
+    color: rgba(51,255,51,0.15);
+    font-size: 9px;
+    line-height: 1.3;
+    letter-spacing: 0.1em;
+  }
+
+  .img-placeholder .load-label {
+    color: rgba(51,255,51,0.3);
+    letter-spacing: 0.15em;
+    font-size: 10px;
+  }
+
+  .img-placeholder .progress {
+    color: var(--terminal-fg);
+    font-size: 10px;
+    opacity: 0.3;
+  }
+
+  .img-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    mix-blend-mode: luminosity;
+    opacity: 0.85;
+    filter: contrast(1.1) brightness(0.9);
+  }
+
+  .img-terminal-caption {
+    background: #0e100c;
+    color: rgba(51,255,51,0.3);
+    font-size: 9px;
+    padding: 0.3rem 0.8rem;
+    border-top: 1px solid rgba(51,255,51,0.06);
+    letter-spacing: 0.05em;
+  }
+
+  .img-terminal-caption span { color: rgba(51,255,51,0.5); }
+
+  /* ─── BODY TEXT ────────────────────────────────────────────────────── */
+
+  .entry-body {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    line-height: 1.85;
+    color: var(--ink-fade);
+    max-width: 64ch;
+    font-weight: 400;
+  }
+
+  .entry-body p { margin-bottom: 1.3em; }
+
+  .entry-body em {
+    font-style: italic;
+    color: var(--ink);
+  }
+
+  .entry-body .witness {
+    font-style: italic;
+    color: var(--ink);
+    border-left: 2px solid var(--red);
+    padding-left: 1.2rem;
+    margin: 1.8em 0;
+    font-size: 13px;
+  }
+
+  .entry-body .witness .attr {
+    display: block;
+    font-style: normal;
+    font-size: 9.5px;
+    color: var(--ink-ghost);
+    margin-top: 0.5em;
+    letter-spacing: 0.05em;
+  }
+
+  /* ─── RECOVERY BAR ────────────────────────────────────────────────── */
+
+  .recover-bar {
+    font-size: 10px;
+    color: var(--ink-ghost);
+    margin: 0.5rem 0 1.5rem;
+    letter-spacing: 0.02em;
+  }
+
+  .recover-bar .fill { color: var(--red); }
+  .recover-bar .pct  { color: var(--ink-fade); margin-left: 0.5em; }
+
+  /* ─── ANNOTATIONS / TAGS ──────────────────────────────────────────── */
+
+  .annotations {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+  }
+
+  .tag {
+    border: 1px solid var(--ink-ghost);
+    padding: 0.15rem 0.5rem;
+    color: var(--ink-ghost);
+    text-transform: uppercase;
+  }
+
+  .tag.status-ok { border-color: var(--green); color: var(--green); }
+  .tag.status-warn { border-color: var(--red); color: var(--red); }
+
+  /* ─── REDACTED ─────────────────────────────────────────────────────── */
+
+  .redacted {
+    background: var(--ink);
+    color: var(--ink);
+    cursor: not-allowed;
+    user-select: none;
+    letter-spacing: 0.05em;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .redacted:hover {
+    background: var(--red);
+    color: var(--paper);
+  }
+
+  /* ─── STAMP ────────────────────────────────────────────────────────── */
+
+  .stamp {
+    display: inline-block;
+    border: 2.5px solid var(--red);
+    color: var(--red);
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 0.15rem 0.5rem;
+    letter-spacing: 0.2em;
+    transform: rotate(-2.5deg);
+    opacity: 0.6;
+    text-transform: uppercase;
+  }
+
+  /* ─── DIVIDER ──────────────────────────────────────────────────────── */
+
+  .hr-cli {
+    margin: 3rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 9px;
+    color: var(--ink-ghost);
+    letter-spacing: 0.1em;
+  }
+
+  .hr-cli::before, .hr-cli::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.2;
+  }
+
+  /* ─── SPLIT LAYOUT ────────────────────────────────────────────────── */
+
+  .entry-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  /* ─── INLINE CODE ──────────────────────────────────────────────────── */
+
+  code.cli {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.82em;
+    color: var(--green);
+    background: var(--red-fade);
+    padding: 0.05em 0.35em;
+  }
+
+  /* ─── ABOUT SECTION ────────────────────────────────────────────────── */
+
+  .about-section {
+    margin-top: 2rem;
+    padding: 3rem 0;
+    border-top: 1px solid var(--paper-3);
+  }
+
+  .about-section .section-label {
+    font-family: 'Inter', sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-ghost);
+    margin-bottom: 2rem;
+  }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+  }
+
+  .about-grid p {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    color: var(--ink-fade);
+  }
+
+  .about-grid .ref {
+    font-size: 10px;
+    color: var(--ink-ghost);
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--paper-3);
+  }
+
+  .about-grid .ref a {
+    color: var(--green);
+    text-decoration: none;
+  }
+
+  .about-grid .ref a:hover {
+    text-decoration: underline;
+  }
+
+  /* ─── FOOTER ───────────────────────────────────────────────────────── */
+
+  footer {
+    background: var(--ink);
+    color: rgba(240,233,216,0.3);
+    padding: 1.5rem 2rem;
+    font-size: 10px;
+  }
+
+  .footer-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  footer .logout::before { content: '$ logout '; color: rgba(51,255,51,0.3); }
+  footer .logout { font-weight: 500; color: rgba(240,233,216,0.5); }
+
+  /* ─── ANIMATIONS ───────────────────────────────────────────────────── */
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  @keyframes flicker {
+    0%, 97%, 100% { opacity: 1; }
+    97.5% { opacity: 0.8; }
+    98%   { opacity: 1; }
+    98.5% { opacity: 0.85; }
+  }
+
+  .img-placeholder {
+    animation: flicker 10s ease-in-out infinite;
+  }
+
+  .entry {
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+  }
+  .entry:nth-child(1) { animation-delay: 0.2s; }
+  .entry:nth-child(2) { animation-delay: 0.4s; }
+  .entry:nth-child(3) { animation-delay: 0.6s; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Hero title entrance */
+  .hero-title {
+    opacity: 0;
+    animation: heroIn 0.8s ease forwards 0.3s;
+  }
+
+  @keyframes heroIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-subtitle {
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards 0.7s;
+  }
+
+  .hero-meta {
+    opacity: 0;
+    animation: fadeUp 0.5s ease forwards 1s;
+  }
+
+  /* ─── RESPONSIVE ───────────────────────────────────────────────────── */
+
+  @media (max-width: 700px) {
+    .entry-split { grid-template-columns: 1fr; }
+    .about-grid { grid-template-columns: 1fr; }
+    .hero-content { padding: 3rem 1.5rem; }
+    main { padding: 3rem 1.5rem 4rem; }
+  }
+
+  @media (max-width: 480px) {
+    .hero-title { font-size: 2.5rem; }
+  }
+
+</style>
+</head>
+
+<body>
+
+<!-- ═══ HERO ══════════════════════════════════════════════════════════ -->
+<section class="hero">
+
+  <!-- Typewriter-art texture background (Wolf-Rehfeldt inspired) -->
+  <div class="hero-texture" aria-hidden="true">XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX     XXXXXXX     XXXXXXXXX X X X X X X X X X X X X X X X X X X X X X X X X</div>
+
+  <div class="hero-boot">
+    <span>CLI-IZDAT OS v0.89 // MEMORY RECOVERY SYSTEM</span>
+    <span>SESSION: <span class="blink">█</span></span>
+  </div>
+
+  <div class="hero-content">
+    <h1 class="hero-title">
+      <span class="strike">SAMIZDAT</span><br>
+      FORGOT YOUR PROTEST?
+      <span class="line-2">reanimating memories of 1989 uprisings</span>
+    </h1>
+
+    <p class="hero-subtitle">
+      A study of collective memory disorder, algorithmic erasure,
+      and the aesthetic kinship between Eastern Bloc samizdat
+      and the command-line interface.
+    </p>
+
+    <div class="hero-meta">
+      <span>path: <span class="val">/memory/1989/</span></span>
+      <span>user: <span class="val">a.lutz</span></span>
+      <span>status: <span class="val">reconstructing</span></span>
+      <span><span class="stamp" style="color:#f0e9d8; border-color:#f0e9d8; opacity:0.25;">RECOVERED</span></span>
+    </div>
+  </div>
+
+  <nav class="hero-nav">
+    <a href="#">index</a>
+    <a href="#">testimonies</a>
+    <a href="#">archive</a>
+    <a href="#">about</a>
+    <a href="#">grep&nbsp;--help</a>
+  </nav>
+
+</section>
+
+<!-- ═══ PATTERN BAND ═════════════════════════════════════════════════ -->
+<div class="pattern-band" aria-hidden="true">
+  <div class="pattern-band-inner">████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░████░░░░</div>
+</div>
+
+<!-- ═══ MAIN ═════════════════════════════════════════════════════════ -->
+<main>
+
+  <!-- ENTRY 1 -->
+  <article class="entry">
+
+    <div class="prompt">
+      <span class="cmd">cat</span>
+      <span class="arg">./warsaw/1989-06-04/entry_01.txt</span>
+    </div>
+
+    <div class="entry-header">
+      <div class="entry-index">001</div>
+      <div>
+        <h2 class="entry-title">The first polling station opened at eight</h2>
+        <div class="entry-filepath">/memory/warsaw/1989-06-04/testimony_01.txt · 4.2kb · [VERIFIED]</div>
+      </div>
+    </div>
+
+    <div class="recover-bar">
+      Reconstructing visual memory&nbsp;
+      <span class="fill">████████████████░░░░</span>
+      <span class="pct">81%</span>
+    </div>
+
+    <!-- Image terminal -->
+    <div class="img-terminal">
+      <div class="img-terminal-bar">
+        <span>display --raw ./img/warsaw_01.png</span>
+        <span class="ok">[OK]&nbsp;1024×576</span>
+      </div>
+      <div class="img-placeholder">
+        <div class="ascii-frame">
+          ┌────────────────────────────────────────────────────┐<br>
+          │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+          │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[ insert ComfyUI image ]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+          │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+          └────────────────────────────────────────────────────┘
+        </div>
+        <div class="load-label">IMG&nbsp;/&nbsp;COMFYUI OUTPUT</div>
+        <div class="progress">████░░░░ loading...</div>
+      </div>
+      <div class="img-terminal-caption">
+        <span>Warsaw, 04.06.1989</span> / AI reconstruction · ComfyUI · Wan 2.2
+        &nbsp;·&nbsp; source: <span class="redacted">██████████████████</span>
+      </div>
+    </div>
+
+    <div class="entry-body">
+      <p>Voting began early. People stood in queues before dawn —
+        not because they feared missing their chance, but because
+        <em>they could no longer wait</em>. It was something unnamed:
+        a mix of fear and relief, the sensation that the world was about to turn
+        upside down, though of course it didn't — not right away.</p>
+
+      <blockquote class="witness">
+        "I took the ballot and realized my hand wouldn't obey.
+        Not from fear — from some kind of solemnity. I was voting
+        for <span class="redacted">███████</span> for the first time,
+        and the word felt almost indecent."
+        <span class="attr">— record: K.W., Warsaw · transcribed: 2023-11-14 · conf: 0.94</span>
+      </blockquote>
+
+      <p>Data partially recovered. The audio recording contains
+        <code class="cli">grep -c "[CORRUPTED]" testimony_01.wav</code> — 17 fragments
+        that resist decryption. Attempt continues.</p>
+    </div>
+
+    <div class="annotations">
+      <span class="tag">poland</span>
+      <span class="tag">elections</span>
+      <span class="tag">1989-06-04</span>
+      <span class="tag status-ok">VERIFIED</span>
+      <span class="tag status-warn">PARTIAL</span>
+    </div>
+  </article>
+
+  <div class="hr-cli">──── next entry ────</div>
+
+  <!-- ENTRY 2: split layout -->
+  <article class="entry">
+
+    <div class="prompt">
+      <span class="cmd">cat</span>
+      <span class="arg">./berlin/1989-11-09/entry_02.txt</span>
+    </div>
+
+    <div class="entry-header">
+      <div class="entry-index">002</div>
+      <div>
+        <h2 class="entry-title">The Wall / Die Mauer</h2>
+        <div class="entry-filepath">/memory/berlin/1989-11-09/testimony_02.txt · 7.8kb</div>
+      </div>
+    </div>
+
+    <div class="recover-bar">
+      Reconstructing visual memory&nbsp;
+      <span class="fill">████████████████████</span>
+      <span class="pct">100% · <span style="color:var(--green)">[COMPLETE]</span></span>
+    </div>
+
+    <div class="entry-split">
+
+      <!-- Left: image -->
+      <div class="img-terminal">
+        <div class="img-terminal-bar">
+          <span>display ./img/berlin_02.png</span>
+          <span class="ok">[OK]</span>
+        </div>
+        <div class="img-placeholder" style="aspect-ratio:4/5">
+          <div class="ascii-frame">
+            ┌──────────────────┐<br>
+            │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+            │&nbsp;&nbsp;ComfyUI image&nbsp;&nbsp;&nbsp;│<br>
+            │&nbsp;&nbsp;portrait/story&nbsp;&nbsp;│<br>
+            │&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br>
+            └──────────────────┘
+          </div>
+          <div class="load-label">IMG&nbsp;/&nbsp;COMFYUI</div>
+        </div>
+        <div class="img-terminal-caption"><span>Berlin, 09.11.1989</span></div>
+      </div>
+
+      <!-- Right: text -->
+      <div class="entry-body" style="padding-top:0.5rem">
+        <p>Nobody slept that night. The news came through radio,
+        a phone call, a neighbour shouting down the stairwell:
+        <em>They've opened it. Mauer ist offen.</em></p>
+
+        <blockquote class="witness">
+          "We went on foot. Nobody knew if this would last,
+          so nobody waited for a bus."
+          <span class="attr">— record: H.B., East Berlin · 2024-02-07</span>
+        </blockquote>
+
+        <p>Fragment recovered via
+          <code class="cli">whisper --lang de</code>.
+          Accuracy: <code class="cli">0.97</code>.</p>
+      </div>
+    </div>
+
+    <div class="annotations">
+      <span class="tag">berlin</span>
+      <span class="tag">wall</span>
+      <span class="tag">1989-11-09</span>
+      <span class="tag status-ok">COMPLETE</span>
+    </div>
+  </article>
+
+  <div class="hr-cli">──── next entry ────</div>
+
+  <!-- ENTRY 3: text-heavy, no image -->
+  <article class="entry">
+
+    <div class="prompt">
+      <span class="cmd">grep -r</span>
+      <span class="arg">"memory" ./archive/ --include="*.txt"</span>
+    </div>
+
+    <div class="entry-header">
+      <div class="entry-index">003</div>
+      <div>
+        <h2 class="entry-title">The Memory Machine</h2>
+        <div class="entry-filepath">/essays/memory_machine.txt · 22kb · draft</div>
+      </div>
+    </div>
+
+    <div class="entry-body">
+      <p>The memory of protest doesn't live in an archive. It lives in the body,
+      in intonation, in the way someone pauses before the word
+      <em>freedom</em> — as if checking whether it's safe to say aloud.</p>
+
+      <p>This project is an attempt to build a system that knows
+      how to read those pauses. <code class="cli">CLI-izdat</code> as an interface
+      to what was never officially printed: not then, not now.</p>
+
+      <blockquote class="witness">
+        "We typed at night. Changed the carbon paper every five sheets —
+        otherwise the text became illegible. The sixth copy
+        was almost <span class="redacted">█████████████████</span>."
+        <span class="attr">— record: anonymous · Prague · 1989 / transcribed: 2024-09-03</span>
+      </blockquote>
+    </div>
+
+    <div class="annotations">
+      <span class="tag">essay</span>
+      <span class="tag">theory</span>
+      <span class="tag">samizdat</span>
+      <span class="tag status-warn">DRAFT</span>
+    </div>
+  </article>
+
+  <!-- ═══ ABOUT SECTION ══════════════════════════════════════════════ -->
+  <div class="about-section">
+    <div class="section-label">$ cat ./about.txt</div>
+    <div class="about-grid">
+      <div>
+        <p>CLI-izdat explores the aesthetic and political kinship between
+        Eastern Bloc samizdat culture and the command-line interface —
+        two systems of textual production that operate beneath
+        the surface of sanctioned communication.</p>
+        <div class="ref">
+          CISR e.V. · <a href="#">cisr.eu</a>
+        </div>
+      </div>
+      <div>
+        <p>Samizdat was never just reproduction. It was an act of
+        rewriting the conditions of speech. The CLI inherits this logic:
+        text as action, the prompt as a threshold between silence
+        and utterance.</p>
+        <div class="ref">
+          Research · Alec Lutz · 2024–ongoing
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ═══ FOOTER ════════════════════════════════════════════════════════ -->
+<footer>
+  <div class="footer-inner">
+    <span>CLI-izdat / ZOiS / Bundesstieftung Aufarbeitung // memory_archive v0.89</span>
+    <span class="logout">session end · 2026</span>
+  </div>
+</footer>
+
+</body>
+</html>
